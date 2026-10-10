@@ -1,0 +1,236 @@
+const API_BASE_URL = "http://127.0.0.1:8000";
+
+function getAuthHeader(): Record<string, string> {
+  const token = localStorage.getItem("credence_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const headers = {
+    ...getAuthHeader(),
+    ...(options.headers || {}),
+  };
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    let errorMsg = "An unexpected error occurred";
+    try {
+      const errData = await response.json();
+      errorMsg = errData.detail || errData.message || JSON.stringify(errData);
+    } catch {
+      errorMsg = `Server error ${response.status}: ${response.statusText}`;
+    }
+    throw new Error(errorMsg);
+  }
+
+  return response.json();
+}
+
+export const api = {
+  // Auth
+  async login(username: string, password: string) {
+    return request<any>("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+  },
+
+  async signup(data: any) {
+    return request<any>("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  },
+
+  async logout() {
+    return request<any>("/api/auth/logout", { method: "POST" });
+  },
+
+  async getMe() {
+    return request<any>("/api/auth/me");
+  },
+
+  // Applications
+  async getApplications() {
+    return request<any[]>("/api/applications");
+  },
+
+  async getApplication(id: string) {
+    return request<any>(`/api/applications/${id}`);
+  },
+
+  async createApplication(data: {
+    requested_amount: number;
+    occupation?: string;
+    income_source?: string;
+    declared_income?: number;
+    existing_debt?: number;
+    tenure_months?: number;
+  } | number) {
+    const payload = typeof data === "number" ? { requested_amount: data } : data;
+    return request<any>("/api/applications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async recordDecision(id: string, data: { status: string; approved_amount?: number; override_reason?: string; notes?: string }) {
+    return request<any>(`/api/applications/${id}/decision`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Analysis & Pipeline
+  async runAnalysis(applicationId: string, transactionsFile: File, utilityFile?: File) {
+    const formData = new FormData();
+    formData.append("application_id", applicationId);
+    formData.append("transactions_file", transactionsFile);
+    if (utilityFile) {
+      formData.append("utility_file", utilityFile);
+    }
+
+    const token = localStorage.getItem("credence_token");
+    const response = await fetch(`${API_BASE_URL}/api/analysis`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      let errorMsg = "Failed to run analysis";
+      try {
+        const errData = await response.json();
+        errorMsg = errData.detail || errData.message;
+      } catch {}
+      throw new Error(errorMsg);
+    }
+
+    return response.json();
+  },
+
+  async getAnalysisRun(runId: string) {
+    return request<any>(`/api/analysis/${runId}`);
+  },
+
+  async getAnalysisExplanation(runId: string) {
+    return request<any[]>(`/api/analysis/${runId}/explanation`);
+  },
+
+  async getAnalysisCounterfactuals(runId: string) {
+    return request<any[]>(`/api/analysis/${runId}/counterfactuals`);
+  },
+
+  async runWhatIf(data: {
+    analysis_run_id: string;
+    stable_cash_flow?: number;
+    utility_punctuality?: number;
+    month_end_buffer?: number;
+    requested_amount?: number;
+  }) {
+    return request<any>("/api/analysis/whatif", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Fairness
+  async getFairness() {
+    return request<any>("/api/fairness");
+  },
+
+  // Audit
+  async getAuditHistory(applicationId: string) {
+    return request<any[]>(`/api/audit/${applicationId}`);
+  },
+
+  // Demo
+  async seedDemo() {
+    return request<any>("/api/demo/seed", { method: "POST" });
+  },
+
+  // CSV Converter
+  async detectCsvFormat(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const token = localStorage.getItem("credence_token");
+    const response = await fetch(`${API_BASE_URL}/api/converter/detect`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!response.ok) {
+      let errorMsg = "Failed to detect CSV format";
+      try {
+        const err = await response.json();
+        errorMsg = err.detail || err.message || errorMsg;
+      } catch {}
+      throw new Error(errorMsg);
+    }
+    return response.json();
+  },
+
+  async convertCsv(file: File, mappings?: Record<string, string>) {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (mappings) {
+      formData.append("mappings_json", JSON.stringify(mappings));
+    }
+    const token = localStorage.getItem("credence_token");
+    const response = await fetch(`${API_BASE_URL}/api/converter/convert`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!response.ok) {
+      let errorMsg = "Failed to convert CSV format";
+      try {
+        const err = await response.json();
+        errorMsg = err.detail || err.message || errorMsg;
+      } catch {}
+      throw new Error(errorMsg);
+    }
+    return response.json();
+  },
+
+  async extractPdfStatement(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const token = localStorage.getItem("credence_token");
+    const response = await fetch(`${API_BASE_URL}/api/pdf/extract`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!response.ok) {
+      let errorMsg = "Failed to extract bank statement PDF";
+      try {
+        const err = await response.json();
+        errorMsg = err.detail || err.message || errorMsg;
+      } catch {}
+      throw new Error(errorMsg);
+    }
+    return response.json();
+  },
+
+  async convertPdfTransactions(transactions: any[]) {
+    return request<any>("/api/pdf/convert", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transactions }),
+    });
+  },
+
+  getSampleCsvUrl(filename: string) {
+    return `${API_BASE_URL}/api/demo/sample-csv/${filename}`;
+  }
+};

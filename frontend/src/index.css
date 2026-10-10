@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-base: #F8FAFC;
+    --surface-card: #FFFFFF;
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --border-subtle: #E2E8F0;
+    --brand-primary: #1E3A8A;
+    --brand-hover: #1D4ED8;
+    --brand-soft: #DBEAFE;
+    --accent-emerald: #059669;
+    --accent-soft: #D1FAE5;
+    --status-success: #16A34A;
+    --status-danger: #DC2626;
+    --status-warning: #D97706;
+    --status-info: #2563EB;
+  }
+
+  body {
+    background-color: #F8FAFC;
+    color: #0F172A;
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Accessible focus indicators with 2px offset */
+  :focus-visible {
+    outline: 2px solid #1E3A8A;
+    outline-offset: 2px;
+  }
+
+  /* Global disabled states */
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+  }
+}
+
+/* Custom crisp scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
